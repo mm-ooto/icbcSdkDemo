@@ -4,10 +4,19 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/tidwall/gjson"
-	"gopkg.in/resty.v1"
+	"io/ioutil"
+	"net/http"
+	"net/url"
 	"sort"
 	"strings"
 	"time"
+)
+
+var (
+	headers = map[string]string{
+		"Content-Type": "application/x-www-form-urlencoded",
+		"charset":      "UTF-8",
+	}
 )
 
 type Base struct {
@@ -54,7 +63,10 @@ func NewIcbcClient(params *Base) (apiIcbcClient *IcbcClient, err error) {
 	} else {
 		apiIcbcClient.Charset = params.Charset
 	}
-	if params.Ca != "" {
+	if apiIcbcClient.SignType == SIGN_TYPE_CA {
+		if len(params.Ca) == 0 || len(apiIcbcClient.Password) == 0 {
+			return nil, caOrPasswordEmptyErr
+		}
 		//去除证书数据中的空格
 		params.Ca = strings.ReplaceAll(params.Ca, " ", "")
 		apiIcbcClient.Ca = params.Ca
@@ -63,7 +75,7 @@ func NewIcbcClient(params *Base) (apiIcbcClient *IcbcClient, err error) {
 }
 
 //执行请求
-func (i *IcbcClient) Execute(bizContentData interface{}, action, requestType string) (*gjson.Result, error) {
+func (i *IcbcClient) Execute(bizContentData interface{}, action, method string) (*gjson.Result, error) {
 	commonData := map[string]string{
 		APP_ID:    i.AppId,                             // 必须 APP的编号
 		MSG_ID:    getMsgId(),                          // 必须 消息通讯唯一编号
@@ -72,18 +84,21 @@ func (i *IcbcClient) Execute(bizContentData interface{}, action, requestType str
 		SIGN_TYPE: i.SignType,                          // 可选 加密方式
 		TIMESTAMP: time.Now().Format(Date_Time_Format), // 必须 交易发生时间戳
 	}
+	if i.SignType == SIGN_TYPE_CA {
+		commonData[CA] = i.Ca
+	}
 	params, _, err := i.prepareParams(commonData, bizContentData, action)
 	if err != nil {
 		return nil, err
 	}
 	url := fmt.Sprintf("%s%s", i.IcbcHost, action)
 	//发送请求
-	resBody, err := i.request(params, url, requestType)
+	resBody, err := i.execRequest(params, url, method,&headers)
 	if err != nil {
 		return nil, err
 	}
 	//解析响应
-	result := gjson.Parse(string(resBody))
+	result := gjson.Parse(resBody)
 	responseBizContentResult := result.Get(RESPONSE_BIZ_CONTENT)
 	responseBizContent := responseBizContentResult.String()
 
@@ -131,28 +146,32 @@ func (i *IcbcClient) prepareParams(commonData map[string]string, bizContentData 
 	return
 }
 
-//请求
-func (i *IcbcClient) request(data map[string]string, url string, requestType string) (resBody []byte, err error) {
-	req := resty.R().SetHeaders(map[string]string{
-		"Content-Type": "application/x-www-form-urlencoded",
-		"charset":      "UTF-8",
-	}).SetFormData(data)
-	var res *resty.Response
-	if requestType == REQUEST_TYPE_POST {
-		res, err = req.Post(url)
-		if err != nil {
-			return
-		}
-	} else if requestType == REQUEST_TYPE_GET {
-		res, err = req.Get(url)
-		if err != nil {
-			return
-		}
-	} else {
-		return []byte{}, requestTypeErr
+//执行请求
+func (i *IcbcClient) execRequest(data map[string]string, requestUrl, methodType string, headers *map[string]string) (resBody string, err error) {
+	urlValue := url.Values{}
+	for k, v := range data {
+		urlValue.Add(k, v)
 	}
-
-	return res.Body(), nil
+	req, err := http.NewRequest(methodType, requestUrl, strings.NewReader(urlValue.Encode()))
+	if err != nil {
+		return "", err
+	}
+	if headers != nil {
+		for k, v := range *headers {
+			req.Header.Add(k, v)
+		}
+	}
+	client := http.Client{}
+	res, err := client.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer res.Body.Close()
+	resByte, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		return "", err
+	}
+	return string(resByte), nil
 }
 
 //获取排序后的字符串数据

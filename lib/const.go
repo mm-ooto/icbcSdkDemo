@@ -1,7 +1,8 @@
 package lib
 
 const (
-//	api
+	//工行测试环境host
+	ICBC_TEST_HOST="https://apipcs3.dccnet.com.cn"
 )
 
 //公共字段定义
@@ -48,8 +49,8 @@ const (
 	RESULT_TYPE_0 = "0"
 	RESULT_TYPE_1 = "1"
 	//请求方式
-	REQUEST_TYPE_POST = "POST"
-	REQUEST_TYPE_GET  = "GET"
+	METHOD_TYPE_POST = "POST"
+	METHOD_TYPE_GET  = "GET"
 )
 
 const (
@@ -58,3 +59,4 @@ const (
 	Time_Format      = "150203"
 	Date_Time_Format = "2006-01-02 15:02:03"
 )
+

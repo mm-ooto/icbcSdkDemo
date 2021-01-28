@@ -3,7 +3,7 @@ package lib
 //证书签名
 func icbcCaSign(content, privateKey, pasword string) (string, error) {
 	if len(content) <= 0 {
-		return "", noData
+		return "", caOrPasswordEmptyErr
 	}
 	return "", nil
 }

@@ -1,6 +1,7 @@
 package lib
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/url"
 	"sort"
@@ -10,7 +11,7 @@ import (
 type UiIcbcClient struct {
 }
 
-func (u *UiIcbcClient) Execute(baseParams *Base, action string, bizContentBytes []byte) (uiAddress string, err error) {
+func (u *UiIcbcClient) Execute(baseParams *Base, action string, bizContentInterface interface{}) (uiAddress string, err error) {
 	cli, err := NewIcbcClient(baseParams)
 	if err != nil {
 		return "", err
@@ -22,6 +23,13 @@ func (u *UiIcbcClient) Execute(baseParams *Base, action string, bizContentBytes 
 	urlVlaue.Add(CHARSET, cli.Charset)
 	urlVlaue.Add(SIGN_TYPE, cli.SignType)
 	urlVlaue.Add(TIMESTAMP, getTimestamp())
+	if cli.SignType == SIGN_TYPE_CA {
+		urlVlaue.Add(CA, cli.Ca)
+	}
+	bizContentBytes,err:=json.Marshal(bizContentInterface)
+	if err!=nil{
+		return "",err
+	}
 	bizContent := string(bizContentBytes)
 	if len(bizContent) == 0 {
 		return "", bizContentIsNilErr
