@@ -1,2 +1,2 @@
-#工行支付/下单sdk-demo
+#工行开放平台sdk-demo
 
