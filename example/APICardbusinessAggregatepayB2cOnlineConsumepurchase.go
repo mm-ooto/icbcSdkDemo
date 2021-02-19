@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/mm-ooto/icbcSdkDemo/lib"
 )
+
 //线上POS聚合消费下单接口（无界面）
 func CardbusinessAggregatepayB2cOnlineConsumepurchase() {
 	baseParams := &lib.Base{
@@ -35,7 +36,7 @@ func CardbusinessAggregatepayB2cOnlineConsumepurchase() {
 		"decive_info":      "xxxxx09090erwsfws",      //设备号？
 		"body":             "body",                   //品描述，商品描述交易字段格式根据不同的应用场景按照以下格式：1）PC网站：传入浏览器打开的网站主页title名-实际商品名称 ；2）公众号：传入公众号名称-实际商品名称；3）H5：传入浏览器打开的移动网页的主页title名-实际商品名称；4）线下门店：门店品牌名-城市分店名-实际商品名称；5）APP：传入应用市场上的APP名字-实际商品名称
 		"fee_type":         lib.FEE_TYPE_CNY,         //交易币种，目前工行只支持使用人民币（001）支付
-		"spbill_create_ip": "*******",          //用户端IP
+		"spbill_create_ip": "*******",                //用户端IP
 		"total_fee":        "100",                    //订单金额，单位为分
 		"mer_url":          "http://doc.golang.ltd/", //异步通知商户URL，端口必须为443或80
 		"shop_appid":       "*******",                //商户在微信开放平台注册的APPID，支付方式为微信时不能为空,如：微信appID,微信小程序appID
@@ -52,8 +53,8 @@ func CardbusinessAggregatepayB2cOnlineConsumepurchase() {
 		"return_url":       "",                       //支付成功回显页面，支付成功后，跳转至该页面显示。当access_type=5且pay_mode=10才有效
 		"quit_url":         "",                       //用户付款中途退出返回商户网站的地址（仅对浏览器内支付时有效）当access_type=5且pay_mode=10才有效
 	}
-	action := "/api/cardbusiness/aggregatepay/b2c/online/consumepurchase/V1"
-	gjsonBody, err := cli.Execute(bizContentMap, action, lib.METHOD_TYPE_POST)
+
+	gjsonBody, err := cli.Execute(bizContentMap, lib.Urlb2cOnlineConsumepurchase, lib.METHOD_TYPE_POST)
 	if err != nil {
 		fmt.Printf("cli execute error:%s\n", err.Error())
 		return

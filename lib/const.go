@@ -2,7 +2,13 @@ package lib
 
 const (
 	//工行测试环境host
-	ICBC_TEST_HOST="https://apipcs3.dccnet.com.cn"
+	ICBC_TEST_HOST = "https://apipcs3.dccnet.com.cn"
+	//聚合支付B2C线上消费下单api
+	Urlb2cOnlineConsumepurchase = "/api/cardbusiness/aggregatepay/b2c/online/consumepurchase/V1"
+	//支付宝下单
+	Urlzfbh5uih5Consumepurchase = "/ui/cardbussiness/zfbh5/ui/h5consumption/V1"
+	//生成二维码
+	UrlQrcodeGenerate = "/api/cardbusiness/qrcode/qrgenerate/V1"
 )
 
 //公共字段定义
@@ -59,4 +65,3 @@ const (
 	Time_Format      = "150203"
 	Date_Time_Format = "2006-01-02 15:02:03"
 )
-
