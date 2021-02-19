@@ -1,8 +1,6 @@
 package
 lib
 
-import "strings"
-
 // 公钥转换
 func getPemPublic(public_key string) string {
 	res := "-----BEGIN PUBLIC KEY-----\n"
@@ -33,14 +31,4 @@ func getPemPrivate(private_key string) string {
 	return res
 }
 
-//https://studygolang.com/articles ---> /articles
-//截取通知地址
-func getPathByNotifyUrl(notifyUrl string) string {
-	notifyUrls := strings.Split(notifyUrl, "//")
-	if len(notifyUrls) != 2 {
-		return ""
-	}
-	notifyUrl = notifyUrls[1]
-	index := strings.Index(notifyUrls[1], "/")
-	return notifyUrl[index:]
-}
+

@@ -32,6 +32,7 @@ type Base struct {
 	Password       string
 	IcbcHost       string
 	IsNeedEncrypt  bool
+	NotifyUrl      string
 }
 
 type IcbcClient struct {
@@ -47,6 +48,7 @@ func NewIcbcClient(params *Base) (apiIcbcClient *IcbcClient, err error) {
 			IcbcPublickKey: getPemPublic(params.IcbcPublickKey),
 			Password:       params.Password,
 			IcbcHost:       params.IcbcHost,
+			NotifyUrl:      params.NotifyUrl,
 		},
 	}
 	if params.IsNeedEncrypt {
@@ -93,7 +95,7 @@ func (i *IcbcClient) Execute(bizContentData interface{}, action, method string) 
 	}
 	url := fmt.Sprintf("%s%s", i.IcbcHost, action)
 	//发送请求
-	resBody, err := i.execRequest(params, url, method,&headers)
+	resBody, err := i.execRequest(params, url, method, &headers)
 	if err != nil {
 		return nil, err
 	}
@@ -174,6 +176,67 @@ func (i *IcbcClient) execRequest(data map[string]string, requestUrl, methodType 
 	return string(resByte), nil
 }
 
+//处理异步通知数据
+func (i *IcbcClient) DisposeNotifyData(notifyData string) (*gjson.Result, *NotifyResponseReturn, error) {
+	var (
+		gjsonData  gjson.Result
+		returnCode int64
+		returnMsg  string
+	)
+
+	params := make(map[string]string)
+	notifyDataRes, err := url.ParseQuery(notifyData)
+	if err != nil {
+		return nil, nil, err
+	}
+	params[FROM] = notifyDataRes.Get(FROM)
+	params[API] = notifyDataRes.Get(API)
+	params[APP_ID] = notifyDataRes.Get(APP_ID)
+	params[FORMAT] = notifyDataRes.Get(FORMAT)
+	params[CHARSET] = notifyDataRes.Get(CHARSET)
+	params[ENCRYPT_TYPE] = notifyDataRes.Get(ENCRYPT_TYPE)
+	params[TIMESTAMP] = notifyDataRes.Get(TIMESTAMP)
+	params[SIGN_TYPE] = notifyDataRes.Get(SIGN_TYPE)
+	responseBizContent := notifyDataRes.Get(BIZ_CONTENT_KEY)
+	if i.IsNeedEncrypt { //如果是加密数据则对返回的数据先解密，后验签
+		responseBizContent = AesCFBDecrypt(responseBizContent, i.EncryptKey)
+	}
+	params[BIZ_CONTENT_KEY] = responseBizContent
+	//对请求结果验签
+	signTxt := getSortStr(getPathByNotifyUrl(i.NotifyUrl)+"?", params)
+	signData := notifyDataRes.Get(SIGN)
+	signType := SIGN_TYPE_RSA //工行验签暂时只支持RSA
+	if err := IcbcVerifySignature(signTxt, signData, signType, i.IcbcPublickKey, i.Charset, i.Password); err != nil {
+		return nil, nil, err
+	}
+
+	params[SIGN] = signData
+	gjsonData = gjson.Parse(responseBizContent)
+	returnCode = gjsonData.Get(RETURN_CODE).Int()
+	returnMsg = gjsonData.Get(RETURN_MSG).String()
+	if returnCode != 0 {
+		fmt.Printf("异步回调通知失败，错误码：【%d】,错误信息：【%s】\n", returnCode, returnMsg)
+	}
+
+	//异步回调通知响应参数组装
+	notifyResponseReturn := NotifyResponseReturn{
+		ResponseBizContent: ResponseBizContentM{
+			ReturnCode: returnCode,
+			ReturnMsg:  returnMsg,
+			MsgId:      getMsgId(),
+		},
+		SignType: i.SignType,
+	}
+	//待签名字符串
+	strToSign, _ := json.Marshal(notifyResponseReturn)
+	signedStr, err := IcbcSignature(string(strToSign), i.SignType, i.PrivateKey, i.Charset, i.Password)
+	if err != nil {
+		return nil, nil, err
+	}
+	notifyResponseReturn.Sign = signedStr
+	return &gjsonData, &notifyResponseReturn, nil
+}
+
 //获取排序后的字符串数据
 func getSortStr(signPrex string, mapParams map[string]string) (str string) {
 	keys := make([]string, 0)
@@ -202,4 +265,16 @@ func getMsgId() string {
 
 func getTimestamp() string {
 	return time.Now().Format(Date_Time_Format)
+}
+
+//https://studygolang.com/articles ---> /articles
+//截取通知地址
+func getPathByNotifyUrl(notifyUrl string) string {
+	notifyUrls := strings.Split(notifyUrl, "//")
+	if len(notifyUrls) != 2 {
+		return ""
+	}
+	notifyUrl = notifyUrls[1]
+	index := strings.Index(notifyUrls[1], "/")
+	return notifyUrl[index:]
 }
